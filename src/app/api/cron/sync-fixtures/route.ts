@@ -4,7 +4,7 @@ import { getFixtures, getCurrentSeason, getDateRange } from '@/lib/api/football-
 import { ACTIVE_LEAGUES } from '@/lib/utils/constants'
 import { validateCronSecret } from '@/lib/utils/validators'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 export async function GET(request: Request) {
   if (!validateCronSecret(request)) {
@@ -12,12 +12,17 @@ export async function GET(request: Request) {
   }
 
   try {
+    const url = new URL(request.url)
+    const fullSync = url.searchParams.get('full') === 'true'
     const season = getCurrentSeason()
-    const { from, to } = getDateRange(14) // 2 weeks ahead
     let totalSynced = 0
 
     for (const leagueId of ACTIVE_LEAGUES) {
-      const fixtures = await getFixtures(leagueId, season, { from, to })
+      // Full sync: get all season fixtures; normal: next 14 days only
+      const options = fullSync
+        ? {} // No date filter = all fixtures for the season
+        : { from: getDateRange(14).from, to: getDateRange(14).to }
+      const fixtures = await getFixtures(leagueId, season, options)
 
       for (const fixture of fixtures) {
         // Upsert team references first
