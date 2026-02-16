@@ -12,6 +12,7 @@
     { "path": "/api/cron/sync-odds-movement", "schedule": "0 11 * * *" },
     { "path": "/api/cron/generate-predictions", "schedule": "0 12 * * *" },
     { "path": "/api/cron/settle-bets", "schedule": "0 13 * * *" },
+    { "path": "/api/cron/generate-accumulators", "schedule": "0 14 * * *" },
     { "path": "/api/cron/daily-snapshot", "schedule": "0 0 * * *" }
   ]
 }

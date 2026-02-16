@@ -8,7 +8,10 @@ import type {
   FootballH2H,
 } from '@/lib/types/api'
 
-const BASE_URL = 'https://v3.football.api-sports.io'
+// Auto-detect: RapidAPI keys contain 'msh', direct API-SPORTS keys don't
+const isRapidAPI = (key: string) => key.includes('msh')
+const RAPIDAPI_URL = 'https://api-football-v1.p.rapidapi.com/v3'
+const DIRECT_URL = 'https://v3.football.api-sports.io'
 
 async function footballFetch<T>(
   endpoint: string,
@@ -17,15 +20,25 @@ async function footballFetch<T>(
   const apiKey = process.env.FOOTBALL_API_KEY
   if (!apiKey) throw new Error('FOOTBALL_API_KEY not configured')
 
-  const url = new URL(`${BASE_URL}${endpoint}`)
+  const useRapidAPI = isRapidAPI(apiKey)
+  const baseUrl = useRapidAPI ? RAPIDAPI_URL : DIRECT_URL
+
+  const url = new URL(`${baseUrl}${endpoint}`)
   Object.entries(params).forEach(([key, val]) =>
     url.searchParams.set(key, String(val))
   )
 
+  const headers: Record<string, string> = useRapidAPI
+    ? {
+        'x-rapidapi-key': apiKey,
+        'x-rapidapi-host': 'api-football-v1.p.rapidapi.com',
+      }
+    : {
+        'x-apisports-key': apiKey,
+      }
+
   const res = await fetch(url.toString(), {
-    headers: {
-      'x-apisports-key': apiKey,
-    },
+    headers,
     next: { revalidate: 0 },
   })
 

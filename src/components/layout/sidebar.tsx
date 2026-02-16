@@ -11,11 +11,13 @@ import {
   Settings,
   Target,
   TrendingUp,
+  Layers,
 } from 'lucide-react'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/matches', label: 'Matches', icon: Trophy },
+  { href: '/accumulators', label: 'Accumulators', icon: Layers },
   { href: '/leagues', label: 'Leagues', icon: BarChart3 },
   { href: '/bankroll', label: 'Bankroll', icon: Wallet },
   { href: '/live', label: 'Live Tracker', icon: Radio },
