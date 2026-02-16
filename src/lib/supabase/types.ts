@@ -1,20 +1,14 @@
 // Auto-generated types will be placed here after running:
 // npx supabase gen types typescript --local > src/lib/supabase/types.ts
 //
-// For now, export a placeholder Database type
-export type Database = {
-  public: {
-    Tables: Record<string, never>
-    Views: Record<string, never>
-    Functions: Record<string, never>
-    Enums: Record<string, never>
-  }
-}
+// For now, we skip the Database type parameter on Supabase clients
+// so all queries return `any` typed data. This avoids TypeScript errors
+// while the real schema types aren't generated yet.
+//
+// Once Supabase is set up with the real schema, run:
+//   npx supabase gen types typescript --project-id YOUR_PROJECT_ID > src/lib/supabase/types.ts
+// Then re-add <Database> to the client constructors.
 
-// Re-export commonly used types
-export type Tables<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Row']
-export type Inserts<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Insert']
-export type Updates<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Update']
+// Placeholder - will be replaced by generated types
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Database = any
