@@ -14,9 +14,11 @@ export async function GET(request: Request) {
   try {
     const season = getCurrentSeason()
     let totalSynced = 0
+    const errors: string[] = []
     const europeanLeagues = [LEAGUE_IDS.CHAMPIONS_LEAGUE, LEAGUE_IDS.EUROPA_LEAGUE]
 
     for (const leagueId of europeanLeagues) {
+      try {
       const competition = leagueId === LEAGUE_IDS.CHAMPIONS_LEAGUE
         ? 'Champions League'
         : 'Europa League'
@@ -53,9 +55,13 @@ export async function GET(request: Request) {
           }
         }
       }
+      } catch (leagueError) {
+        console.error(`sync-european-context: League ${leagueId} failed:`, leagueError)
+        errors.push(`League ${leagueId}: ${String(leagueError)}`)
+      }
     }
 
-    return NextResponse.json({ success: true, synced: totalSynced })
+    return NextResponse.json({ success: true, synced: totalSynced, errors: errors.length > 0 ? errors : undefined })
   } catch (error) {
     console.error('sync-european-context error:', error)
     return NextResponse.json({ error: 'Sync failed', details: String(error) }, { status: 500 })

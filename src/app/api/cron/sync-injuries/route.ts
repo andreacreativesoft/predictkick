@@ -14,8 +14,10 @@ export async function GET(request: Request) {
   try {
     const season = getCurrentSeason()
     let totalSynced = 0
+    const errors: string[] = []
 
     for (const leagueId of ACTIVE_LEAGUES) {
+      try {
       const injuries = await getInjuries(leagueId, season)
 
       for (const injury of injuries) {
@@ -69,9 +71,13 @@ export async function GET(request: Request) {
 
         totalSynced++
       }
+      } catch (leagueError) {
+        console.error(`sync-injuries: League ${leagueId} failed:`, leagueError)
+        errors.push(`League ${leagueId}: ${String(leagueError)}`)
+      }
     }
 
-    return NextResponse.json({ success: true, synced: totalSynced })
+    return NextResponse.json({ success: true, synced: totalSynced, errors: errors.length > 0 ? errors : undefined })
   } catch (error) {
     console.error('sync-injuries error:', error)
     return NextResponse.json({ error: 'Sync failed', details: String(error) }, { status: 500 })

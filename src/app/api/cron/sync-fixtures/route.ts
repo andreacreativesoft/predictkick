@@ -17,7 +17,10 @@ export async function GET(request: Request) {
     const season = getCurrentSeason()
     let totalSynced = 0
 
+    const errors: string[] = []
+
     for (const leagueId of ACTIVE_LEAGUES) {
+      try {
       // Full sync: get all season fixtures; normal: next 14 days only
       const options = fullSync
         ? {} // No date filter = all fixtures for the season
@@ -80,9 +83,13 @@ export async function GET(request: Request) {
 
         if (!error) totalSynced++
       }
+      } catch (leagueError) {
+        console.error(`sync-fixtures: League ${leagueId} failed:`, leagueError)
+        errors.push(`League ${leagueId}: ${String(leagueError)}`)
+      }
     }
 
-    return NextResponse.json({ success: true, synced: totalSynced })
+    return NextResponse.json({ success: true, synced: totalSynced, errors: errors.length > 0 ? errors : undefined })
   } catch (error) {
     console.error('sync-fixtures error:', error)
     return NextResponse.json(
