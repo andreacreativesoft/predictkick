@@ -223,7 +223,11 @@ export async function getFixtureStatistics(fixtureId: number) {
 export function getCurrentSeason(): number {
   const now = new Date()
   // European season starts in Aug, so if before Aug use previous year
-  return now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
+  const calculated = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
+  // Free API-Football plans only support up to season 2024
+  // Cap to 2024 to avoid "Free plans do not have access" errors
+  const maxSeason = parseInt(process.env.MAX_FOOTBALL_SEASON || '2024', 10)
+  return Math.min(calculated, maxSeason)
 }
 
 export function getDateRange(daysAhead: number = 7): { from: string; to: string } {

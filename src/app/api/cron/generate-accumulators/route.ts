@@ -15,7 +15,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const season = new Date().getFullYear().toString()
+    const { getCurrentSeason } = await import('@/lib/api/football-api')
+    const season = getCurrentSeason().toString()
 
     // Step 1: Refresh dominant team profiles
     const dominantTeams = await refreshDominantTeams(season)
