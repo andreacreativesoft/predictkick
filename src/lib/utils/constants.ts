@@ -11,6 +11,39 @@ export const LEAGUE_IDS = {
 
 export const ACTIVE_LEAGUES = Object.values(LEAGUE_IDS)
 
+// football-data.org competition codes
+export const FOOTBALL_DATA_CODES = {
+  PREMIER_LEAGUE: 'PL',
+  LA_LIGA: 'PD',
+  SERIE_A: 'SA',
+  BUNDESLIGA: 'BL1',
+  LIGUE_1: 'FL1',
+  CHAMPIONS_LEAGUE: 'CL',
+  EUROPA_LEAGUE: 'EC', // Requires paid tier
+} as const
+
+// football-data.org competition IDs
+export const FOOTBALL_DATA_IDS = {
+  PREMIER_LEAGUE: 2021,
+  LA_LIGA: 2014,
+  SERIE_A: 2019,
+  BUNDESLIGA: 2002,
+  LIGUE_1: 2015,
+  CHAMPIONS_LEAGUE: 2001,
+  EUROPA_LEAGUE: 2146, // Requires paid tier
+} as const
+
+// Map API-Football numeric league IDs to football-data.org competition codes
+export const LEAGUE_ID_TO_FD_CODE: Record<number, string> = {
+  [LEAGUE_IDS.PREMIER_LEAGUE]: FOOTBALL_DATA_CODES.PREMIER_LEAGUE,   // 39 -> PL
+  [LEAGUE_IDS.LA_LIGA]: FOOTBALL_DATA_CODES.LA_LIGA,                 // 140 -> PD
+  [LEAGUE_IDS.SERIE_A]: FOOTBALL_DATA_CODES.SERIE_A,                 // 135 -> SA
+  [LEAGUE_IDS.BUNDESLIGA]: FOOTBALL_DATA_CODES.BUNDESLIGA,           // 78 -> BL1
+  [LEAGUE_IDS.LIGUE_1]: FOOTBALL_DATA_CODES.LIGUE_1,                 // 61 -> FL1
+  [LEAGUE_IDS.CHAMPIONS_LEAGUE]: FOOTBALL_DATA_CODES.CHAMPIONS_LEAGUE, // 2 -> CL
+  [LEAGUE_IDS.EUROPA_LEAGUE]: FOOTBALL_DATA_CODES.EUROPA_LEAGUE,     // 3 -> EC
+}
+
 // Bookmaker keys (The Odds API)
 export const BOOKMAKERS = {
   BET365: 'bet365',
@@ -77,6 +110,7 @@ export const CACHE_TTL = {
 // API rate limits (requests per day for free tiers)
 export const API_RATE_LIMITS = {
   FOOTBALL_API: 100,
+  FOOTBALL_DATA: 10,   // 10 requests/minute on free tier
   ODDS_API: 500,       // per month, ~16/day
   OPENWEATHER: 1000,
   NEWS_API: 100,
