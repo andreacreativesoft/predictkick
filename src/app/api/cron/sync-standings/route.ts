@@ -30,66 +30,95 @@ export async function GET(request: Request) {
 
     for (const leagueId of ACTIVE_LEAGUES) {
       try {
-      const standingsData = await getStandings(leagueId, season)
+        const standingsData = await getStandings(leagueId, season)
 
-      for (const leagueStanding of standingsData) {
-        const standings = leagueStanding.league.standings[0] || []
-        const totalTeams = standings.length
+        // Get league UUID
+        const { data: league } = await supabaseAdmin
+          .from('leagues')
+          .select('id')
+          .eq('api_id', leagueId)
+          .single()
 
-        for (const entry of standings) {
-          const { data: team } = await supabaseAdmin
-            .from('teams')
-            .select('id')
-            .eq('api_id', entry.team.id)
-            .single()
-
-          const { data: league } = await supabaseAdmin
-            .from('leagues')
-            .select('id')
-            .eq('api_id', leagueId)
-            .single()
-
-          if (!team || !league) continue
-
-          const zone = determineZone(entry.rank, totalTeams, entry.description)
-          const form = entry.form ? entry.form.split('') : []
-
-          const { error } = await supabaseAdmin
-            .from('standings')
-            .upsert({
-              league_id: league.id,
-              team_id: team.id,
-              season: String(season),
-              position: entry.rank,
-              played: entry.all.played,
-              won: entry.all.win,
-              drawn: entry.all.draw,
-              lost: entry.all.lose,
-              goals_for: entry.all.goals.for,
-              goals_against: entry.all.goals.against,
-              goal_difference: entry.goalsDiff,
-              points: entry.points,
-              ppg: entry.all.played > 0 ? Number((entry.points / entry.all.played).toFixed(2)) : 0,
-              zone,
-              form_last5: form.slice(-5),
-              form_last10: form.slice(-10),
-              home_record: entry.home,
-              away_record: entry.away,
-              avg_goals_scored: entry.all.played > 0 ? Number((entry.all.goals.for / entry.all.played).toFixed(2)) : 0,
-              avg_goals_conceded: entry.all.played > 0 ? Number((entry.all.goals.against / entry.all.played).toFixed(2)) : 0,
-              updated_at: new Date().toISOString(),
-            }, { onConflict: 'league_id,team_id,season' })
-
-          if (!error) totalSynced++
+        if (!league) {
+          errors.push(`League ${leagueId}: no DB entry found`)
+          continue
         }
-      }
+
+        for (const leagueStanding of standingsData) {
+          const standings = leagueStanding.league.standings[0] || []
+          const totalTeams = standings.length
+
+          // Batch: collect all team api_ids
+          const teamApiIds = standings.map(e => e.team.id)
+
+          // Batch fetch team UUIDs
+          const { data: teams } = await supabaseAdmin
+            .from('teams')
+            .select('id, api_id')
+            .in('api_id', teamApiIds)
+
+          const teamMap = new Map<number, string>()
+          if (teams) {
+            for (const t of teams) {
+              teamMap.set(t.api_id, t.id)
+            }
+          }
+
+          // Build all standing rows
+          const standingRows = standings
+            .map(entry => {
+              const teamId = teamMap.get(entry.team.id)
+              if (!teamId) return null
+
+              const zone = determineZone(entry.rank, totalTeams, entry.description)
+              const form = entry.form ? entry.form.split('') : []
+
+              return {
+                league_id: league.id,
+                team_id: teamId,
+                season: String(season),
+                position: entry.rank,
+                played: entry.all.played,
+                won: entry.all.win,
+                drawn: entry.all.draw,
+                lost: entry.all.lose,
+                goals_for: entry.all.goals.for,
+                goals_against: entry.all.goals.against,
+                goal_difference: entry.goalsDiff,
+                points: entry.points,
+                ppg: entry.all.played > 0 ? Number((entry.points / entry.all.played).toFixed(2)) : 0,
+                zone,
+                form_last5: form.slice(-5),
+                form_last10: form.slice(-10),
+                home_record: entry.home,
+                away_record: entry.away,
+                avg_goals_scored: entry.all.played > 0 ? Number((entry.all.goals.for / entry.all.played).toFixed(2)) : 0,
+                avg_goals_conceded: entry.all.played > 0 ? Number((entry.all.goals.against / entry.all.played).toFixed(2)) : 0,
+                updated_at: new Date().toISOString(),
+              }
+            })
+            .filter(Boolean)
+
+          if (standingRows.length > 0) {
+            const { error } = await supabaseAdmin
+              .from('standings')
+              .upsert(standingRows, { onConflict: 'league_id,team_id,season' })
+            if (!error) totalSynced += standingRows.length
+            else errors.push(`League ${leagueId} standings: ${error.message}`)
+          }
+        }
       } catch (leagueError) {
         console.error(`sync-standings: League ${leagueId} failed:`, leagueError)
         errors.push(`League ${leagueId}: ${String(leagueError)}`)
       }
     }
 
-    return NextResponse.json({ success: true, synced: totalSynced, errors: errors.length > 0 ? errors : undefined })
+    return NextResponse.json({
+      success: true,
+      synced: totalSynced,
+      season,
+      errors: errors.length > 0 ? errors : undefined,
+    })
   } catch (error) {
     console.error('sync-standings error:', error)
     return NextResponse.json({ error: 'Sync failed', details: String(error) }, { status: 500 })

@@ -54,7 +54,10 @@ const FD_FREE_TIER_CODES = new Set(['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL'])
 // ==========================================
 
 let fdLastRequestTime = 0
-const FD_MIN_INTERVAL_MS = 6500 // ~9.2 req/min to stay safely under 10/min
+// 10 req/min limit: within a single serverless function invocation (max 60s),
+// we'll make at most ~6 API calls. 1s gap is safe for burst use.
+// For sustained use, Vercel cron runs are spaced apart (daily).
+const FD_MIN_INTERVAL_MS = 1000
 
 async function fdRateLimitDelay(): Promise<void> {
   const now = Date.now()
