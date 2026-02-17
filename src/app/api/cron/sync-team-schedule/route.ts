@@ -10,71 +10,68 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Get all upcoming fixtures
-    const { data: upcomingFixtures } = await supabaseAdmin
+    // Fetch ALL fixtures (scheduled + finished) in one query for in-memory computation
+    const { data: allFixtures } = await supabaseAdmin
       .from('fixtures')
-      .select('id, home_team_id, away_team_id, match_date, league_id')
-      .eq('status', 'scheduled')
-      .gte('match_date', new Date().toISOString())
+      .select('id, home_team_id, away_team_id, match_date, status, league_id')
       .order('match_date', { ascending: true })
 
-    if (!upcomingFixtures) return NextResponse.json({ success: true, synced: 0 })
+    if (!allFixtures) return NextResponse.json({ success: true, synced: 0 })
 
-    let totalSynced = 0
+    // Build a per-team fixture timeline (sorted by date)
+    const teamFixtures = new Map<string, Array<{ id: string; match_date: string; status: string }>>()
 
-    for (const fixture of upcomingFixtures) {
+    for (const f of allFixtures) {
+      for (const teamId of [f.home_team_id, f.away_team_id]) {
+        if (!teamId) continue
+        if (!teamFixtures.has(teamId)) teamFixtures.set(teamId, [])
+        teamFixtures.get(teamId)!.push({ id: f.id, match_date: f.match_date, status: f.status })
+      }
+    }
+
+    // Get upcoming fixtures only
+    const now = new Date().toISOString()
+    const upcoming = allFixtures.filter(f => f.status === 'scheduled' && f.match_date >= now)
+
+    const rows: Record<string, unknown>[] = []
+
+    for (const fixture of upcoming) {
       for (const teamId of [fixture.home_team_id, fixture.away_team_id]) {
         if (!teamId) continue
 
-        // Find previous match for this team
-        const { data: prevMatch } = await supabaseAdmin
-          .from('fixtures')
-          .select('match_date, venue, league_id')
-          .or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId}`)
-          .lt('match_date', fixture.match_date)
-          .order('match_date', { ascending: false })
-          .limit(1)
-          .single()
+        const timeline = teamFixtures.get(teamId) || []
+        const fixtureDate = new Date(fixture.match_date)
+
+        // Find previous match
+        const prevMatches = timeline.filter(t => t.match_date < fixture.match_date)
+        const prevMatch = prevMatches[prevMatches.length - 1] || null
 
         // Find next match after this one
-        const { data: nextMatch } = await supabaseAdmin
-          .from('fixtures')
-          .select('match_date, league_id')
-          .or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId}`)
-          .gt('match_date', fixture.match_date)
-          .order('match_date', { ascending: true })
-          .limit(1)
-          .single()
+        const nextMatches = timeline.filter(t => t.match_date > fixture.match_date)
+        const nextMatch = nextMatches[0] || null
 
-        // Count fixtures in 7 days and 30 days
-        const sevenDaysAgo = new Date(fixture.match_date)
+        // Count congestion
+        const sevenDaysAgo = new Date(fixtureDate)
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-        const thirtyDaysAgo = new Date(fixture.match_date)
+        const thirtyDaysAgo = new Date(fixtureDate)
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-        const { count: congestion7d } = await supabaseAdmin
-          .from('fixtures')
-          .select('*', { count: 'exact', head: true })
-          .or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId}`)
-          .gte('match_date', sevenDaysAgo.toISOString())
-          .lte('match_date', fixture.match_date)
+        const congestion7d = timeline.filter(t =>
+          t.match_date >= sevenDaysAgo.toISOString() && t.match_date <= fixture.match_date
+        ).length
 
-        const { count: congestion30d } = await supabaseAdmin
-          .from('fixtures')
-          .select('*', { count: 'exact', head: true })
-          .or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId}`)
-          .gte('match_date', thirtyDaysAgo.toISOString())
-          .lte('match_date', fixture.match_date)
+        const congestion30d = timeline.filter(t =>
+          t.match_date >= thirtyDaysAgo.toISOString() && t.match_date <= fixture.match_date
+        ).length
 
         const daysSincePrev = prevMatch
-          ? Math.round((new Date(fixture.match_date).getTime() - new Date(prevMatch.match_date).getTime()) / 86400000)
+          ? Math.round((fixtureDate.getTime() - new Date(prevMatch.match_date).getTime()) / 86400000)
           : null
 
         const daysUntilNext = nextMatch
-          ? Math.round((new Date(nextMatch.match_date).getTime() - new Date(fixture.match_date).getTime()) / 86400000)
+          ? Math.round((new Date(nextMatch.match_date).getTime() - fixtureDate.getTime()) / 86400000)
           : null
 
-        // Calculate fatigue score (higher = more fatigued)
         let fatigue = 0.3
         if (daysSincePrev !== null) {
           if (daysSincePrev <= 2) fatigue = 0.9
@@ -83,12 +80,11 @@ export async function GET(request: Request) {
           else fatigue = 0.3
         }
 
-        // Rotation risk
         let rotationRisk = 0.2
         if (daysUntilNext !== null && daysUntilNext <= 3) rotationRisk = 0.6
-        if ((congestion7d || 0) >= 3) rotationRisk = Math.max(rotationRisk, 0.7)
+        if (congestion7d >= 3) rotationRisk = Math.max(rotationRisk, 0.7)
 
-        await supabaseAdmin.from('team_schedule_context').upsert({
+        rows.push({
           team_id: teamId,
           fixture_id: fixture.id,
           prev_match_date: prevMatch?.match_date || null,
@@ -97,13 +93,21 @@ export async function GET(request: Request) {
           days_until_next_match: daysUntilNext,
           fatigue_score: fatigue,
           rotation_risk: rotationRisk,
-          fixture_congestion_7d: congestion7d || 0,
-          fixture_congestion_30d: congestion30d || 0,
+          fixture_congestion_7d: congestion7d,
+          fixture_congestion_30d: congestion30d,
           updated_at: new Date().toISOString(),
         })
-
-        totalSynced++
       }
+    }
+
+    // Batch upsert all schedule context rows
+    let totalSynced = 0
+    for (let i = 0; i < rows.length; i += 100) {
+      const chunk = rows.slice(i, i + 100)
+      const { error } = await supabaseAdmin
+        .from('team_schedule_context')
+        .upsert(chunk)
+      if (!error) totalSynced += chunk.length
     }
 
     return NextResponse.json({ success: true, synced: totalSynced })

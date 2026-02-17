@@ -3,7 +3,6 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { getOddsForLeague, findBestOdds, LEAGUE_TO_SPORT_KEY } from '@/lib/api/odds-api'
 import { ACTIVE_LEAGUES } from '@/lib/utils/constants'
 import { validateCronSecret } from '@/lib/utils/validators'
-import { oddsToImpliedProbability } from '@/lib/utils/probability'
 
 export const maxDuration = 60
 
@@ -16,49 +15,57 @@ export async function GET(request: Request) {
     let totalSynced = 0
     const errors: string[] = []
 
+    // Pre-fetch all scheduled fixtures for matching
+    const { data: allFixtures } = await supabaseAdmin
+      .from('fixtures')
+      .select('id, match_date, home_team:teams!fixtures_home_team_id_fkey(name), away_team:teams!fixtures_away_team_id_fkey(name)')
+      .eq('status', 'scheduled')
+      .gte('match_date', new Date().toISOString())
+
+    if (!allFixtures || allFixtures.length === 0) {
+      return NextResponse.json({ success: true, synced: 0, message: 'No scheduled fixtures' })
+    }
+
     for (const leagueId of ACTIVE_LEAGUES) {
       try {
-      const sportKey = LEAGUE_TO_SPORT_KEY[leagueId]
-      if (!sportKey) continue
+        const sportKey = LEAGUE_TO_SPORT_KEY[leagueId]
+        if (!sportKey) continue
 
-      const events = await getOddsForLeague(sportKey, {
-        regions: 'eu',
-        markets: 'h2h,totals',
-        bookmakers: 'bet365,williamhill,unibet,betfair,onexbet,pinnacle',
-      })
+        const events = await getOddsForLeague(sportKey, {
+          regions: 'eu',
+          markets: 'h2h',
+          bookmakers: 'bet365,williamhill,unibet,betfair,pinnacle',
+        })
 
-      const bestOdds = findBestOdds(events)
+        if (!events || events.length === 0) continue
 
-      for (const event of events) {
-        // Match to our fixture by team names and date
-        const { data: fixture } = await supabaseAdmin
-          .from('fixtures')
-          .select('id')
-          .gte('match_date', new Date(event.commence_time).toISOString())
-          .lte('match_date', new Date(new Date(event.commence_time).getTime() + 86400000).toISOString())
-          .limit(1)
-          .single()
+        const bestOdds = findBestOdds(events)
+        const oddsCurrentRows: Record<string, unknown>[] = []
+        const oddsHistoryRows: Record<string, unknown>[] = []
 
-        if (!fixture) continue
+        for (const event of events) {
+          // Match to fixture by date (within same day)
+          const eventDate = new Date(event.commence_time)
+          const matched = allFixtures.find(f => {
+            const fDate = new Date(f.match_date)
+            return Math.abs(fDate.getTime() - eventDate.getTime()) < 86400000
+          })
 
-        const best = bestOdds.find(b => b.event_id === event.id)
-        if (!best) continue
+          if (!matched) continue
 
-        // Calculate averages
-        const h2hMarkets = event.bookmakers.flatMap(b =>
-          b.markets.filter(m => m.key === 'h2h')
-        )
-        const homeOdds = h2hMarkets.flatMap(m => m.outcomes.filter(o => o.name === event.home_team).map(o => o.price))
-        const drawOdds = h2hMarkets.flatMap(m => m.outcomes.filter(o => o.name === 'Draw').map(o => o.price))
-        const awayOdds = h2hMarkets.flatMap(m => m.outcomes.filter(o => o.name === event.away_team).map(o => o.price))
+          const best = bestOdds.find(b => b.event_id === event.id)
+          if (!best) continue
 
-        const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null
+          const h2hMarkets = event.bookmakers.flatMap(b =>
+            b.markets.filter(m => m.key === 'h2h')
+          )
+          const homeOdds = h2hMarkets.flatMap(m => m.outcomes.filter(o => o.name === event.home_team).map(o => o.price))
+          const drawOdds = h2hMarkets.flatMap(m => m.outcomes.filter(o => o.name === 'Draw').map(o => o.price))
+          const awayOdds = h2hMarkets.flatMap(m => m.outcomes.filter(o => o.name === event.away_team).map(o => o.price))
+          const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null
 
-        // Upsert best odds
-        await supabaseAdmin
-          .from('odds_current')
-          .upsert({
-            fixture_id: fixture.id,
+          oddsCurrentRows.push({
+            fixture_id: matched.id,
             market: 'h2h',
             best_home_odds: best.best_home.odds || null,
             best_home_bookmaker: best.best_home.bookmaker || null,
@@ -71,31 +78,42 @@ export async function GET(request: Request) {
             avg_away_odds: avg(awayOdds),
             line: null,
             updated_at: new Date().toISOString(),
-          }, { onConflict: 'fixture_id,market,line' })
+          })
 
-        // Store history snapshot per bookmaker
-        for (const bookmaker of event.bookmakers) {
-          for (const market of bookmaker.markets.filter(m => m.key === 'h2h')) {
-            const home = market.outcomes.find(o => o.name === event.home_team)?.price
-            const draw = market.outcomes.find(o => o.name === 'Draw')?.price
-            const away = market.outcomes.find(o => o.name === event.away_team)?.price
-
-            await supabaseAdmin.from('odds_history').insert({
-              fixture_id: fixture.id,
-              bookmaker: bookmaker.key,
-              market: 'h2h',
-              home_odds: home || null,
-              draw_odds: draw || null,
-              away_odds: away || null,
-              line: null,
-              is_live: false,
-              snapshot_at: new Date().toISOString(),
-            })
+          // Collect history rows
+          for (const bookmaker of event.bookmakers) {
+            for (const market of bookmaker.markets.filter(m => m.key === 'h2h')) {
+              oddsHistoryRows.push({
+                fixture_id: matched.id,
+                bookmaker: bookmaker.key,
+                market: 'h2h',
+                home_odds: market.outcomes.find(o => o.name === event.home_team)?.price || null,
+                draw_odds: market.outcomes.find(o => o.name === 'Draw')?.price || null,
+                away_odds: market.outcomes.find(o => o.name === event.away_team)?.price || null,
+                line: null,
+                is_live: false,
+                snapshot_at: new Date().toISOString(),
+              })
+            }
           }
         }
 
-        totalSynced++
-      }
+        // Batch upsert odds_current
+        if (oddsCurrentRows.length > 0) {
+          const { error } = await supabaseAdmin
+            .from('odds_current')
+            .upsert(oddsCurrentRows, { onConflict: 'fixture_id,market,line' })
+          if (!error) totalSynced += oddsCurrentRows.length
+          else errors.push(`League ${leagueId} odds_current: ${error.message}`)
+        }
+
+        // Batch insert odds_history
+        if (oddsHistoryRows.length > 0) {
+          for (let i = 0; i < oddsHistoryRows.length; i += 100) {
+            const chunk = oddsHistoryRows.slice(i, i + 100)
+            await supabaseAdmin.from('odds_history').insert(chunk)
+          }
+        }
       } catch (leagueError) {
         console.error(`sync-odds: League ${leagueId} failed:`, leagueError)
         errors.push(`League ${leagueId}: ${String(leagueError)}`)
