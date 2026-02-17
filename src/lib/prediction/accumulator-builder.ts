@@ -77,7 +77,8 @@ export async function refreshDominantTeams(
 export async function generateDailyAccumulatorPicks(): Promise<
   AccumulatorPick[]
 > {
-  const season = new Date().getFullYear().toString()
+  const nowDate = new Date()
+  const season = (nowDate.getMonth() >= 6 ? nowDate.getFullYear() : nowDate.getFullYear() - 1).toString()
 
   // Get dominant teams
   const { data: dominantTeams } = await supabaseAdmin

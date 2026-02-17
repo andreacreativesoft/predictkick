@@ -21,9 +21,11 @@ interface DominantTeamRow {
   team_id: string
   dominance_level: string
   dominance_score: number
-  win_rate: number
+  win_rate: number // stored as decimal 0-1
   ppg: number
-  form: string
+  form_score: number // stored as decimal 0-1
+  home_win_rate: number
+  away_win_rate: number
   min_odds_threshold: number
   team: TeamRef | null
   league: LeagueRef | null
@@ -71,13 +73,13 @@ interface AccumulatorPerformanceRow {
   id: string
   season: string
   total_combos: number
-  combos_won: number
-  combos_lost: number
+  won_combos: number
+  lost_combos: number
   hit_rate: number
   roi: number
   current_streak: number
-  best_streak: number
-  worst_streak: number
+  longest_winning_streak: number
+  longest_losing_streak: number
   monthly_results: unknown
 }
 
@@ -127,8 +129,9 @@ export default async function AccumulatorsPage() {
 
   const combos = (rawCombos || []) as unknown as AccumulatorComboRow[]
 
-  // Fetch season performance
-  const season = new Date().getFullYear().toString()
+  // Fetch season performance (football season starts July, so use year-1 if before July)
+  const now2 = new Date()
+  const season = (now2.getMonth() >= 6 ? now2.getFullYear() : now2.getFullYear() - 1).toString()
   const { data: rawPerformance } = await supabase
     .from('accumulator_performance')
     .select('*')
@@ -195,28 +198,18 @@ export default async function AccumulatorsPage() {
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
                       <span className="text-muted">Win Rate</span>
-                      <p className="text-foreground font-semibold">{Number(dt.win_rate).toFixed(0)}%</p>
+                      <p className="text-foreground font-semibold">{(Number(dt.win_rate) * 100).toFixed(0)}%</p>
                     </div>
                     <div>
                       <span className="text-muted">PPG</span>
                       <p className="text-foreground font-semibold">{Number(dt.ppg).toFixed(2)}</p>
                     </div>
                     <div>
-                      <span className="text-muted">Form</span>
-                      <p className="text-foreground font-semibold font-mono tracking-wider">
-                        {String(dt.form || '--').split('').map((ch, i) => (
-                          <span
-                            key={i}
-                            className={
-                              ch === 'W' ? 'text-success' :
-                              ch === 'D' ? 'text-warning' :
-                              ch === 'L' ? 'text-danger' :
-                              'text-muted'
-                            }
-                          >
-                            {ch}
-                          </span>
-                        ))}
+                      <span className="text-muted">H/A Win</span>
+                      <p className="text-foreground font-semibold">
+                        <span className="text-success">{(Number(dt.home_win_rate) * 100).toFixed(0)}%</span>
+                        <span className="text-muted mx-0.5">/</span>
+                        <span className="text-accent">{(Number(dt.away_win_rate) * 100).toFixed(0)}%</span>
                       </p>
                     </div>
                     <div>
@@ -428,13 +421,13 @@ export default async function AccumulatorsPage() {
               />
               <PerfStatCard
                 label="Won"
-                value={String(Number(performance.combos_won))}
+                value={String(Number(performance.won_combos))}
                 icon={Star}
                 color="text-success"
               />
               <PerfStatCard
                 label="Lost"
-                value={String(Number(performance.combos_lost))}
+                value={String(Number(performance.lost_combos))}
                 icon={AlertTriangle}
                 color="text-danger"
               />
