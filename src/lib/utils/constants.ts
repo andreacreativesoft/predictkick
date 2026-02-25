@@ -54,6 +54,15 @@ export const BOOKMAKERS = {
   PINNACLE: 'pinnacle',
 } as const
 
+// Romanian bookmaker keys (scraped directly)
+export const RO_BOOKMAKERS = {
+  SUPERBET: 'superbet',
+  CASA_PARIURILOR: 'casa_pariurilor',
+  BETANO: 'betano',
+  LAS_VEGAS: 'las_vegas',
+  BAUM_BET: 'baum_bet',
+} as const
+
 // Prediction weight model v2.0
 export const PREDICTION_WEIGHTS = {
   // Tier 1: Hard Stats (42%)
