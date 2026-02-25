@@ -6,6 +6,31 @@ import { validateCronSecret } from '@/lib/utils/validators'
 
 export const maxDuration = 60
 
+// Normalize team name for fuzzy matching
+function normalizeTeamName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\b(fc|cf|sc|ac|as|ss|us|afc|ssc|rcd|rc|cd|ud|sd|ca|se|bsc|vfb|rb|sv|tsg|1\.)\b/gi, '')
+    .replace(/\b(football|club|sport|calcio|sportif|city|united|athletic|athletico|wanderers|rovers|hotspur|albion)\b/gi, '')
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+// Check if two normalized names match (substring or overlap)
+function fuzzyTeamMatch(a: string, b: string): boolean {
+  if (!a || !b) return false
+  if (a === b) return true
+  // Check if one contains the other
+  if (a.includes(b) || b.includes(a)) return true
+  // Check word overlap: if the main keyword matches
+  const aWords = a.split(' ').filter(w => w.length > 2)
+  const bWords = b.split(' ').filter(w => w.length > 2)
+  const overlap = aWords.filter(w => bWords.includes(w))
+  // At least one significant word must match
+  return overlap.length > 0
+}
+
 export async function GET(request: Request) {
   if (!validateCronSecret(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -44,11 +69,23 @@ export async function GET(request: Request) {
         const oddsHistoryRows: Record<string, unknown>[] = []
 
         for (const event of events) {
-          // Match to fixture by date (within same day)
+          // Match to fixture by team name + date proximity
           const eventDate = new Date(event.commence_time)
+          const eventHome = normalizeTeamName(event.home_team)
+          const eventAway = normalizeTeamName(event.away_team)
+
           const matched = allFixtures.find(f => {
             const fDate = new Date(f.match_date)
-            return Math.abs(fDate.getTime() - eventDate.getTime()) < 86400000
+            const withinDay = Math.abs(fDate.getTime() - eventDate.getTime()) < 86400000
+            if (!withinDay) return false
+
+            const fHome = normalizeTeamName(
+              (f.home_team as unknown as { name: string })?.name || ''
+            )
+            const fAway = normalizeTeamName(
+              (f.away_team as unknown as { name: string })?.name || ''
+            )
+            return fuzzyTeamMatch(eventHome, fHome) && fuzzyTeamMatch(eventAway, fAway)
           })
 
           if (!matched) continue
