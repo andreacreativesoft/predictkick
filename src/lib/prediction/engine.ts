@@ -29,7 +29,12 @@ export async function generatePrediction(fixtureId: string): Promise<PredictionR
 
   if (!fixture) throw new Error(`Fixture ${fixtureId} not found`)
 
-  const season = new Date(fixture.match_date).getFullYear().toString()
+  // European football season starts in Aug/Sep and runs to May/Jun
+  // A match in Feb 2026 belongs to the 2025-2026 season, stored as "2025"
+  const matchDate = new Date(fixture.match_date)
+  const year = matchDate.getFullYear()
+  const month = matchDate.getMonth() // 0-indexed: 0=Jan, 7=Aug
+  const season = month < 7 ? (year - 1).toString() : year.toString()
 
   // Fetch all supporting data in parallel
   const [
