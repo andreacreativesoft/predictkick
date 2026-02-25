@@ -5,20 +5,67 @@ import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
-// Bookmaker display names
+// Bookmaker display names (nice labels for all known bookmaker API keys)
 const BOOKMAKER_LABELS: Record<string, string> = {
+  // Romanian bookmakers
   superbet: 'Superbet',
   casa_pariurilor: 'Casa Pariurilor',
   las_vegas: 'Las Vegas',
   baum_bet: 'Baum Bet',
   betano: 'Betano',
+  suprabets: 'Suprabets',
+  // International bookmakers
   bet365: 'Bet365',
   williamhill: 'William Hill',
   unibet: 'Unibet',
-  betfair: 'Betfair',
+  unibet_eu: 'Unibet EU',
+  unibet_se: 'Unibet SE',
+  unibet_nl: 'Unibet NL',
+  unibet_uk: 'Unibet UK',
+  betfair: 'Betfair Exchange',
+  betfair_ex_uk: 'Betfair Exchange',
+  betfair_sb_uk: 'Betfair Sportsbook',
   pinnacle: 'Pinnacle',
   '1xbet': '1xBet',
+  matchbook: 'Matchbook',
+  betsson: 'Betsson',
+  nordicbet: 'NordicBet',
+  betonlineag: 'BetOnline',
+  betanysports: 'BetAnySports',
+  paddypower: 'Paddy Power',
+  grosvenor: 'Grosvenor',
+  casumo: 'Casumo',
+  coolbet: 'Coolbet',
+  leovegas_se: 'LeoVegas',
+  betclic_fr: 'Betclic',
+  parionssport_fr: 'Parions Sport',
+  codere_it: 'Codere',
+  marathon_bet: 'Marathon Bet',
+  livescorebet_eu: 'LiveScore Bet',
+  sport888: '888sport',
+  coral: 'Coral',
+  ladbrokes_uk: 'Ladbrokes',
+  betway: 'Betway',
+  skybet: 'Sky Bet',
+  bodog: 'Bodog',
+  bovada: 'Bovada',
+  draftkings: 'DraftKings',
+  fanduel: 'FanDuel',
+  betmgm: 'BetMGM',
+  pointsbet_us: 'PointsBet',
+  mybookieag: 'MyBookie',
+  lowvig: 'LowVig',
+  betus: 'BetUS',
+  tipico_de: 'Tipico',
+  everygame: 'Everygame',
+  superbook: 'SuperBook',
+  gtbets: 'GTBets',
+  betrivers: 'BetRivers',
+  williamhill_us: 'Caesars',
 }
+
+// Romanian bookmaker keys for ordering
+const ROMANIAN_BOOKMAKERS = new Set(['superbet', 'casa_pariurilor', 'las_vegas', 'baum_bet', 'betano', 'suprabets'])
 
 export default async function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -265,87 +312,136 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
                 <Scale className="w-4 h-4 text-accent" /> All Bookmaker Odds
               </h3>
 
-              {/* Odds Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left text-muted py-1.5 font-medium">Bookmaker</th>
-                      <th className="text-center text-muted py-1.5 font-medium">1</th>
-                      <th className="text-center text-muted py-1.5 font-medium">X</th>
-                      <th className="text-center text-muted py-1.5 font-medium">2</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* International avg */}
-                    {odds && (
-                      <tr className="border-b border-border/50">
-                        <td className="py-1.5 text-muted italic">Intl. Average</td>
-                        <td className="text-center py-1.5 text-muted italic">{Number(odds.avg_home_odds).toFixed(2)}</td>
-                        <td className="text-center py-1.5 text-muted italic">{Number(odds.avg_draw_odds).toFixed(2)}</td>
-                        <td className="text-center py-1.5 text-muted italic">{Number(odds.avg_away_odds).toFixed(2)}</td>
-                      </tr>
-                    )}
-                    {/* International best */}
-                    {odds && (
-                      <tr className="border-b border-border/50">
-                        <td className="py-1.5 text-muted italic">Intl. Best</td>
-                        <td className="text-center py-1.5 font-semibold text-foreground">{Number(odds.best_home_odds).toFixed(2)}</td>
-                        <td className="text-center py-1.5 font-semibold text-foreground">{Number(odds.best_draw_odds).toFixed(2)}</td>
-                        <td className="text-center py-1.5 font-semibold text-foreground">{Number(odds.best_away_odds).toFixed(2)}</td>
-                      </tr>
-                    )}
-                    {/* International bookmakers from history */}
-                    {Array.from(latestByBookmaker.entries()).map(([bk, row]) => (
-                      <tr key={bk} className="border-b border-border/30">
-                        <td className="py-1.5 text-foreground">{BOOKMAKER_LABELS[bk] || bk}</td>
-                        <td className="text-center py-1.5 text-foreground">{Number(row.home_odds).toFixed(2)}</td>
-                        <td className="text-center py-1.5 text-foreground">{Number(row.draw_odds).toFixed(2)}</td>
-                        <td className="text-center py-1.5 text-foreground">{Number(row.away_odds).toFixed(2)}</td>
-                      </tr>
-                    ))}
-                    {/* Separator between international and Romanian */}
-                    {roOdds.length > 0 && latestByBookmaker.size > 0 && (
-                      <tr><td colSpan={4} className="py-1 text-center text-[10px] text-muted">── Romanian Bookmakers ──</td></tr>
-                    )}
-                    {/* Romanian bookmaker odds */}
-                    {roOdds.map((ro) => {
-                      const avgHome = odds ? Number(odds.avg_home_odds) : 0
-                      const avgDraw = odds ? Number(odds.avg_draw_odds) : 0
-                      const avgAway = odds ? Number(odds.avg_away_odds) : 0
-                      const homeVal = avgHome > 1 ? ((Number(ro.home_odds) - avgHome) / avgHome) * 100 : 0
-                      const drawVal = avgDraw > 1 ? ((Number(ro.draw_odds) - avgDraw) / avgDraw) * 100 : 0
-                      const awayVal = avgAway > 1 ? ((Number(ro.away_odds) - avgAway) / avgAway) * 100 : 0
+              {/* Odds Table - Romanian first, then international sorted by best offer */}
+              {(() => {
+                const avgHome = odds ? Number(odds.avg_home_odds) : 0
+                const avgDraw = odds ? Number(odds.avg_draw_odds) : 0
+                const avgAway = odds ? Number(odds.avg_away_odds) : 0
 
-                      return (
-                        <tr key={String(ro.bookmaker)} className="border-b border-border/30">
-                          <td className="py-1.5 text-foreground font-medium">
-                            🇷🇴 {BOOKMAKER_LABELS[String(ro.bookmaker)] || String(ro.bookmaker)}
-                          </td>
-                          <td className="text-center py-1.5">
-                            <span className={`font-semibold ${homeVal >= 5 ? 'text-success' : 'text-foreground'}`}>
-                              {Number(ro.home_odds).toFixed(2)}
-                            </span>
-                            {homeVal >= 5 && <span className="text-[9px] text-success ml-0.5">+{homeVal.toFixed(0)}%</span>}
-                          </td>
-                          <td className="text-center py-1.5">
-                            <span className={`font-semibold ${drawVal >= 5 ? 'text-success' : 'text-foreground'}`}>
-                              {Number(ro.draw_odds).toFixed(2)}
-                            </span>
-                            {drawVal >= 5 && <span className="text-[9px] text-success ml-0.5">+{drawVal.toFixed(0)}%</span>}
-                          </td>
-                          <td className="text-center py-1.5">
-                            <span className={`font-semibold ${awayVal >= 5 ? 'text-success' : 'text-foreground'}`}>
-                              {Number(ro.away_odds).toFixed(2)}
-                            </span>
-                            {awayVal >= 5 && <span className="text-[9px] text-success ml-0.5">+{awayVal.toFixed(0)}%</span>}
-                          </td>
+                // Build international bookmaker rows sorted by best average offer
+                const intlRows = Array.from(latestByBookmaker.entries())
+                  .map(([bk, row]) => ({
+                    key: bk,
+                    name: BOOKMAKER_LABELS[bk] || bk.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+                    home: Number(row.home_odds),
+                    draw: Number(row.draw_odds),
+                    away: Number(row.away_odds),
+                    avgOffer: (Number(row.home_odds) + Number(row.draw_odds) + Number(row.away_odds)) / 3,
+                    isRomanian: false,
+                  }))
+                  .sort((a, b) => b.avgOffer - a.avgOffer) // Best offers first (higher odds = better for bettor)
+
+                // Build Romanian bookmaker rows
+                const roRows = roOdds.map((ro) => ({
+                  key: String(ro.bookmaker),
+                  name: BOOKMAKER_LABELS[String(ro.bookmaker)] || String(ro.bookmaker),
+                  home: Number(ro.home_odds),
+                  draw: Number(ro.draw_odds),
+                  away: Number(ro.away_odds),
+                  avgOffer: (Number(ro.home_odds) + Number(ro.draw_odds) + Number(ro.away_odds)) / 3,
+                  isRomanian: true,
+                })).sort((a, b) => b.avgOffer - a.avgOffer)
+
+                // Find the overall best odds for highlighting
+                const allRows = [...roRows, ...intlRows]
+                const bestHome = Math.max(...allRows.map(r => r.home).filter(v => v > 0), 0)
+                const bestDraw = Math.max(...allRows.map(r => r.draw).filter(v => v > 0), 0)
+                const bestAway = Math.max(...allRows.map(r => r.away).filter(v => v > 0), 0)
+
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="text-left text-muted py-2 font-medium">Bookmaker</th>
+                          <th className="text-center text-muted py-2 font-medium w-16">1</th>
+                          <th className="text-center text-muted py-2 font-medium w-16">X</th>
+                          <th className="text-center text-muted py-2 font-medium w-16">2</th>
                         </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                      </thead>
+                      <tbody>
+                        {/* Romanian bookmakers section */}
+                        {roRows.length > 0 && (
+                          <tr><td colSpan={4} className="pt-2 pb-1 text-[10px] font-semibold text-accent uppercase tracking-wider">Romanian Market</td></tr>
+                        )}
+                        {roRows.map((row) => {
+                          const homeEdge = avgHome > 1 ? ((row.home - avgHome) / avgHome) * 100 : 0
+                          const drawEdge = avgDraw > 1 ? ((row.draw - avgDraw) / avgDraw) * 100 : 0
+                          const awayEdge = avgAway > 1 ? ((row.away - avgAway) / avgAway) * 100 : 0
+
+                          return (
+                            <tr key={row.key} className="border-b border-border/30 hover:bg-card-hover transition-colors">
+                              <td className="py-2 font-medium text-foreground flex items-center gap-1.5">
+                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-500/10 text-[10px]">🇷🇴</span>
+                                {row.name}
+                              </td>
+                              <td className="text-center py-2">
+                                <span className={`font-semibold ${row.home === bestHome ? 'text-success' : homeEdge >= 5 ? 'text-success/80' : 'text-foreground'}`}>
+                                  {row.home.toFixed(2)}
+                                </span>
+                                {homeEdge >= 5 && <div className="text-[9px] text-success leading-none">+{homeEdge.toFixed(0)}%</div>}
+                              </td>
+                              <td className="text-center py-2">
+                                <span className={`font-semibold ${row.draw === bestDraw ? 'text-success' : drawEdge >= 5 ? 'text-success/80' : 'text-foreground'}`}>
+                                  {row.draw.toFixed(2)}
+                                </span>
+                                {drawEdge >= 5 && <div className="text-[9px] text-success leading-none">+{drawEdge.toFixed(0)}%</div>}
+                              </td>
+                              <td className="text-center py-2">
+                                <span className={`font-semibold ${row.away === bestAway ? 'text-success' : awayEdge >= 5 ? 'text-success/80' : 'text-foreground'}`}>
+                                  {row.away.toFixed(2)}
+                                </span>
+                                {awayEdge >= 5 && <div className="text-[9px] text-success leading-none">+{awayEdge.toFixed(0)}%</div>}
+                              </td>
+                            </tr>
+                          )
+                        })}
+
+                        {/* Summary row */}
+                        {odds && (
+                          <>
+                            <tr><td colSpan={4} className="pt-3 pb-1 text-[10px] font-semibold text-accent uppercase tracking-wider">International Market</td></tr>
+                            <tr className="border-b border-border/50 bg-accent/5">
+                              <td className="py-2 text-muted font-medium flex items-center gap-1.5">
+                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-accent/10 text-[10px]">📊</span>
+                                Average
+                              </td>
+                              <td className="text-center py-2 text-muted font-medium">{Number(odds.avg_home_odds).toFixed(2)}</td>
+                              <td className="text-center py-2 text-muted font-medium">{Number(odds.avg_draw_odds).toFixed(2)}</td>
+                              <td className="text-center py-2 text-muted font-medium">{Number(odds.avg_away_odds).toFixed(2)}</td>
+                            </tr>
+                          </>
+                        )}
+
+                        {/* International bookmakers sorted by best offer */}
+                        {intlRows.map((row) => (
+                          <tr key={row.key} className="border-b border-border/20 hover:bg-card-hover transition-colors">
+                            <td className="py-1.5 text-foreground/80 flex items-center gap-1.5">
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-border/50 text-[10px]">🌍</span>
+                              {row.name}
+                            </td>
+                            <td className="text-center py-1.5">
+                              <span className={`${row.home === bestHome ? 'font-bold text-success' : 'text-foreground/80'}`}>
+                                {row.home.toFixed(2)}
+                              </span>
+                            </td>
+                            <td className="text-center py-1.5">
+                              <span className={`${row.draw === bestDraw ? 'font-bold text-success' : 'text-foreground/80'}`}>
+                                {row.draw.toFixed(2)}
+                              </span>
+                            </td>
+                            <td className="text-center py-1.5">
+                              <span className={`${row.away === bestAway ? 'font-bold text-success' : 'text-foreground/80'}`}>
+                                {row.away.toFixed(2)}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              })()}
             </div>
           )}
 
