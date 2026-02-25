@@ -118,9 +118,11 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     }
   }
 
-  const prediction = (fixture.predictions as unknown as Array<Record<string, unknown>>)?.[0]
-  const odds = (fixture.odds_current as unknown as Array<Record<string, unknown>>)?.[0]
-  const weather = (fixture.match_weather as unknown as Array<Record<string, unknown>>)?.[0]
+  // Supabase returns single object for unique FK, array for non-unique
+  const getFirst = (raw: unknown) => Array.isArray(raw) ? raw[0] : raw
+  const prediction = getFirst(fixture.predictions) as Record<string, unknown> | null
+  const odds = getFirst(fixture.odds_current) as Record<string, unknown> | null
+  const weather = getFirst(fixture.match_weather) as Record<string, unknown> | null
   const homeTeam = fixture.home_team as unknown as Record<string, unknown>
   const awayTeam = fixture.away_team as unknown as Record<string, unknown>
   const league = fixture.league as unknown as Record<string, unknown>

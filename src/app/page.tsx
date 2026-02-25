@@ -52,11 +52,22 @@ export default async function Dashboard() {
   const isToday = todayFixtures && todayFixtures.length > 0
 
   // Count value bets across displayed matches
+  // Supabase returns object for unique FK, array for non-unique
+  const getPrediction = (m: (typeof matches)[number]) => {
+    const raw = m.predictions as unknown
+    const pred = Array.isArray(raw) ? raw[0] : raw
+    return pred as Record<string, unknown> | null
+  }
+  const getOdds = (m: (typeof matches)[number]) => {
+    const raw = m.odds_current as unknown
+    const o = Array.isArray(raw) ? raw[0] : raw
+    return o as Record<string, unknown> | null
+  }
   let valueBetCount = 0
   for (const m of matches) {
-    const preds = m.predictions as unknown as Array<Record<string, unknown>> | null
-    if (preds?.[0]?.value_bets && Array.isArray(preds[0].value_bets)) {
-      valueBetCount += (preds[0].value_bets as unknown[]).length
+    const pred = getPrediction(m)
+    if (pred?.value_bets && Array.isArray(pred.value_bets)) {
+      valueBetCount += (pred.value_bets as unknown[]).length
     }
   }
 
@@ -144,8 +155,8 @@ export default async function Dashboard() {
               </h2>
               <div className="space-y-2">
                 {dateMatches.map((match) => {
-                  const prediction = (match.predictions as unknown as Array<Record<string, unknown>>)?.[0]
-                  const odds = (match.odds_current as unknown as Array<Record<string, unknown>>)?.[0]
+                  const prediction = getPrediction(match)
+                  const odds = getOdds(match)
                   const homeTeam = match.home_team as unknown as { name: string; short_name: string | null }
                   const awayTeam = match.away_team as unknown as { name: string; short_name: string | null }
                   const league = match.league as unknown as { name: string } | null

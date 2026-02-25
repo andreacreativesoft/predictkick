@@ -82,8 +82,11 @@ export default async function MatchesPage() {
             </h2>
             <div className="space-y-3">
               {dateMatches.map((match) => {
-                const prediction = (match.predictions as unknown as Array<Record<string, unknown>>)?.[0]
-                const odds = (match.odds_current as unknown as Array<Record<string, unknown>>)?.[0]
+                // Supabase returns single object for unique FK, array for non-unique
+                const rawPrediction = match.predictions as unknown
+                const prediction = Array.isArray(rawPrediction) ? rawPrediction[0] : rawPrediction
+                const rawOdds = match.odds_current as unknown
+                const odds = Array.isArray(rawOdds) ? rawOdds[0] : rawOdds
                 const homeTeam = match.home_team as unknown as { name: string; short_name: string | null; logo_url: string | null }
                 const awayTeam = match.away_team as unknown as { name: string; short_name: string | null; logo_url: string | null }
                 const league = match.league as unknown as { name: string; logo_url: string | null }
