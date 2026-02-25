@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, Brain, BarChart3, TrendingUp, Cloud, Shield, AlertTriangle, Scale, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { ExtendedMarketsPanel } from '@/components/match/extended-markets'
 
 export const dynamic = 'force-dynamic'
 
@@ -134,17 +135,17 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     <div className="space-y-6">
       {/* Back nav */}
       <Link href="/matches" className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground">
-        <ArrowLeft className="w-4 h-4" /> Back to Matches
+        <ArrowLeft className="w-4 h-4" /> Înapoi la Meciuri
       </Link>
 
       {/* Header */}
       <div className="bg-card border border-border rounded-xl p-6">
-        <div className="text-xs text-muted mb-4">{String(league?.name)} &middot; {new Date(fixture.match_date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} at {new Date(fixture.match_date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+        <div className="text-xs text-muted mb-4">{String(league?.name)} &middot; {new Date(fixture.match_date).toLocaleDateString('ro-RO', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} ora {new Date(fixture.match_date).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}</div>
 
         <div className="flex items-center justify-between">
           <div className="text-center flex-1">
             <p className="text-xl font-bold text-foreground">{String(homeTeam?.name)}</p>
-            <p className="text-xs text-muted mt-1">Home</p>
+            <p className="text-xs text-muted mt-1">Gazde</p>
           </div>
 
           {prediction ? (
@@ -152,7 +153,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
               <div className="text-3xl font-bold text-accent">
                 {String(prediction.predicted_score_home)}-{String(prediction.predicted_score_away)}
               </div>
-              <p className="text-xs text-muted mt-1">Predicted Score</p>
+              <p className="text-xs text-muted mt-1">Scor Prezis</p>
             </div>
           ) : (
             <div className="text-center px-8">
@@ -162,7 +163,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
 
           <div className="text-center flex-1">
             <p className="text-xl font-bold text-foreground">{String(awayTeam?.name)}</p>
-            <p className="text-xs text-muted mt-1">Away</p>
+            <p className="text-xs text-muted mt-1">Oaspeți</p>
           </div>
         </div>
       </div>
@@ -175,13 +176,13 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
               {/* Probabilities */}
               <div className="bg-card border border-border rounded-xl p-5">
                 <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-accent" /> Match Probabilities
+                  <BarChart3 className="w-4 h-4 text-accent" /> Probabilități Meci
                 </h3>
                 <div className="space-y-3">
                   {[
-                    { label: 'Home Win', value: Number(prediction.home_win_prob), color: 'bg-accent' },
-                    { label: 'Draw', value: Number(prediction.draw_prob), color: 'bg-warning' },
-                    { label: 'Away Win', value: Number(prediction.away_win_prob), color: 'bg-danger' },
+                    { label: 'Victorie Gazde', value: Number(prediction.home_win_prob), color: 'bg-accent' },
+                    { label: 'Egal', value: Number(prediction.draw_prob), color: 'bg-warning' },
+                    { label: 'Victorie Oaspeți', value: Number(prediction.away_win_prob), color: 'bg-danger' },
                   ].map((item) => (
                     <div key={item.label}>
                       <div className="flex justify-between text-xs mb-1">
@@ -197,15 +198,15 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
 
                 <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-border">
                   <div className="text-center">
-                    <p className="text-xs text-muted">Over 2.5</p>
+                    <p className="text-xs text-muted">Peste 2.5</p>
                     <p className="text-sm font-bold text-foreground">{Number(prediction.over_25_prob).toFixed(0)}%</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xs text-muted">BTTS Yes</p>
+                    <p className="text-xs text-muted">GG Da</p>
                     <p className="text-sm font-bold text-foreground">{Number(prediction.btts_yes_prob).toFixed(0)}%</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xs text-muted">Confidence</p>
+                    <p className="text-xs text-muted">Încredere</p>
                     <p className="text-sm font-bold text-accent">{Number(prediction.confidence_score).toFixed(0)}%</p>
                   </div>
                 </div>
@@ -215,13 +216,13 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
               {prediction.ai_analysis && (
                 <div className="bg-card border border-border rounded-xl p-5">
                   <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                    <Brain className="w-4 h-4 text-accent" /> AI Analysis
+                    <Brain className="w-4 h-4 text-accent" /> Analiză AI
                   </h3>
                   <p className="text-sm text-muted leading-relaxed">{String(prediction.ai_analysis)}</p>
 
                   {Array.isArray(prediction.key_factors) && prediction.key_factors.length > 0 && (
                     <div className="mt-4">
-                      <p className="text-xs font-semibold text-foreground mb-2">Key Factors</p>
+                      <p className="text-xs font-semibold text-foreground mb-2">Factori Cheie</p>
                       <ul className="space-y-1">
                         {(prediction.key_factors as string[]).map((factor: string, i: number) => (
                           <li key={i} className="text-xs text-muted flex items-start gap-1.5">
@@ -235,7 +236,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
 
                   {Array.isArray(prediction.risk_factors) && prediction.risk_factors.length > 0 && (
                     <div className="mt-4">
-                      <p className="text-xs font-semibold text-foreground mb-2">Risk Factors</p>
+                      <p className="text-xs font-semibold text-foreground mb-2">Factori de Risc</p>
                       <ul className="space-y-1">
                         {(prediction.risk_factors as string[]).map((risk: string, i: number) => (
                           <li key={i} className="text-xs text-muted flex items-start gap-1.5">
@@ -251,11 +252,16 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
             </>
           )}
 
+          {/* Extended Markets - All Predictions */}
+          {prediction && (
+            <ExtendedMarketsPanel fixtureId={id} />
+          )}
+
           {!prediction && (
             <div className="bg-card border border-border rounded-xl p-8 text-center">
               <Brain className="w-10 h-10 text-muted mx-auto mb-3" />
-              <p className="text-sm font-semibold text-foreground">No prediction generated yet</p>
-              <p className="text-xs text-muted mt-1">Run the generate-predictions cron job to analyze this match.</p>
+              <p className="text-sm font-semibold text-foreground">Nicio predicție generată încă</p>
+              <p className="text-xs text-muted mt-1">Rulează job-ul de predicții pentru a analiza acest meci.</p>
             </div>
           )}
         </div>
@@ -265,12 +271,12 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
           {/* Best Odds */}
           {odds && (
             <div className="bg-card border border-border rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-foreground mb-3">Best Odds</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-3">Cele Mai Bune Cote</h3>
               <div className="space-y-2">
                 {[
-                  { label: 'Home', odds: odds.best_home_odds, book: odds.best_home_bookmaker },
-                  { label: 'Draw', odds: odds.best_draw_odds, book: odds.best_draw_bookmaker },
-                  { label: 'Away', odds: odds.best_away_odds, book: odds.best_away_bookmaker },
+                  { label: 'Gazde', odds: odds.best_home_odds, book: odds.best_home_bookmaker },
+                  { label: 'Egal', odds: odds.best_draw_odds, book: odds.best_draw_bookmaker },
+                  { label: 'Oaspeți', odds: odds.best_away_odds, book: odds.best_away_bookmaker },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center justify-between p-2 bg-background rounded-lg">
                     <span className="text-xs text-muted">{item.label}</span>
@@ -288,7 +294,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
           {valueBets.length > 0 && (
             <div className="bg-card border border-success/20 rounded-xl p-5">
               <h3 className="text-sm font-semibold text-success mb-3 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" /> Value Bets
+                <TrendingUp className="w-4 h-4" /> Pariuri de Valoare
               </h3>
               <div className="space-y-2">
                 {valueBets.map((vb, i) => (
@@ -311,7 +317,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
           {(roOdds.length > 0 || latestByBookmaker.size > 0) && (
             <div className="bg-card border border-border rounded-xl p-5">
               <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                <Scale className="w-4 h-4 text-accent" /> All Bookmaker Odds
+                <Scale className="w-4 h-4 text-accent" /> Toate Cotele
               </h3>
 
               {/* Odds Table - Romanian first, then international sorted by best offer */}
@@ -364,7 +370,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
                       <tbody>
                         {/* Romanian bookmakers section */}
                         {roRows.length > 0 && (
-                          <tr><td colSpan={4} className="pt-2 pb-1 text-[10px] font-semibold text-accent uppercase tracking-wider">Romanian Market</td></tr>
+                          <tr><td colSpan={4} className="pt-2 pb-1 text-[10px] font-semibold text-accent uppercase tracking-wider">Piața Românească</td></tr>
                         )}
                         {roRows.map((row) => {
                           const homeEdge = avgHome > 1 ? ((row.home - avgHome) / avgHome) * 100 : 0
@@ -402,11 +408,11 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
                         {/* Summary row */}
                         {odds && (
                           <>
-                            <tr><td colSpan={4} className="pt-3 pb-1 text-[10px] font-semibold text-accent uppercase tracking-wider">International Market</td></tr>
+                            <tr><td colSpan={4} className="pt-3 pb-1 text-[10px] font-semibold text-accent uppercase tracking-wider">Piața Internațională</td></tr>
                             <tr className="border-b border-border/50 bg-accent/5">
                               <td className="py-2 text-muted font-medium flex items-center gap-1.5">
                                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-accent/10 text-[10px]">📊</span>
-                                Average
+                                Medie
                               </td>
                               <td className="text-center py-2 text-muted font-medium">{Number(odds.avg_home_odds).toFixed(2)}</td>
                               <td className="text-center py-2 text-muted font-medium">{Number(odds.avg_draw_odds).toFixed(2)}</td>
@@ -451,7 +457,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
           {alerts.length > 0 && (
             <div className="bg-card border border-success/30 rounded-xl p-5">
               <h3 className="text-sm font-semibold text-success mb-3 flex items-center gap-2">
-                <Zap className="w-4 h-4" /> Value Alerts
+                <Zap className="w-4 h-4" /> Alerte de Valoare
               </h3>
               <div className="space-y-2">
                 {alerts.map((alert, i) => (
@@ -475,13 +481,13 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
           {weather && (
             <div className="bg-card border border-border rounded-xl p-5">
               <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                <Cloud className="w-4 h-4 text-accent" /> Weather
+                <Cloud className="w-4 h-4 text-accent" /> Meteo
               </h3>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div><span className="text-muted">Temp:</span> <span className="text-foreground">{Number(weather.pre_temperature)}°C</span></div>
-                <div><span className="text-muted">Wind:</span> <span className="text-foreground">{Number(weather.pre_wind_speed)} m/s</span></div>
-                <div><span className="text-muted">Rain:</span> <span className="text-foreground">{Number(weather.pre_rain_probability)}%</span></div>
-                <div><span className="text-muted">Condition:</span> <span className="text-foreground capitalize">{String(weather.pre_condition)}</span></div>
+                <div><span className="text-muted">Vânt:</span> <span className="text-foreground">{Number(weather.pre_wind_speed)} m/s</span></div>
+                <div><span className="text-muted">Ploaie:</span> <span className="text-foreground">{Number(weather.pre_rain_probability)}%</span></div>
+                <div><span className="text-muted">Condiții:</span> <span className="text-foreground capitalize">{String(weather.pre_condition)}</span></div>
               </div>
               {weather.weather_impact_description ? (
                 <p className="text-[10px] text-muted mt-2 pt-2 border-t border-border">{String(weather.weather_impact_description)}</p>
@@ -489,14 +495,14 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
             </div>
           )}
 
-          {/* Match Info */}
+          {/* Info Meci */}
           <div className="bg-card border border-border rounded-xl p-5">
             <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              <Shield className="w-4 h-4 text-accent" /> Match Info
+              <Shield className="w-4 h-4 text-accent" /> Info Meci
             </h3>
             <div className="space-y-2 text-xs">
-              {fixture.venue && <div><span className="text-muted">Venue:</span> <span className="text-foreground">{fixture.venue}</span></div>}
-              {fixture.referee && <div><span className="text-muted">Referee:</span> <span className="text-foreground">{fixture.referee}</span></div>}
+              {fixture.venue && <div><span className="text-muted">Stadion:</span> <span className="text-foreground">{fixture.venue}</span></div>}
+              {fixture.referee && <div><span className="text-muted">Arbitru:</span> <span className="text-foreground">{fixture.referee}</span></div>}
               {prediction?.model_version && <div><span className="text-muted">Model:</span> <span className="text-foreground">{String(prediction.model_version)}</span></div>}
             </div>
           </div>
