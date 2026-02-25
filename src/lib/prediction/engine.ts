@@ -154,45 +154,59 @@ export async function generatePrediction(fixtureId: string): Promise<PredictionR
     data_completeness: dataCompleteness,
   }
 
-  // 5. AI Synthesis (5% weight)
+  // 5. AI Synthesis (5% weight) - Skip in serverless to avoid timeouts
+  // AI enrichment can be run separately via a dedicated endpoint
   let aiAnalysis = ''
   let keyFactors: string[] = []
   let riskFactors: string[] = []
 
-  try {
-    const homeTeam = fixture.home_team as { name: string }
-    const awayTeam = fixture.away_team as { name: string }
-    const league = fixture.league as { name: string }
+  const skipAI = process.env.SKIP_AI_PREDICTION === 'true' || !process.env.ANTHROPIC_API_KEY
 
-    const aiResult = await claudeAnalyze({
-      fixture_summary: `${homeTeam.name} vs ${awayTeam.name} - ${league.name} - ${fixture.match_date}`,
-      stats_data: { home: homeStandings, away: awayStandings },
-      h2h_data: h2hData || {},
-      injuries: injuries,
-      context_factors: contextFactors,
-      weather: weather || {},
-      odds: odds || {},
-      manual_inputs: manualInputs,
-      raw_prediction: rawPrediction,
-    })
+  if (!skipAI) {
+    try {
+      const homeTeam = fixture.home_team as { name: string }
+      const awayTeam = fixture.away_team as { name: string }
+      const league = fixture.league as { name: string }
 
-    // Apply AI adjustments (clamped to ±5%)
-    rawPrediction.home_win_prob += Math.max(-5, Math.min(5, aiResult.probability_adjustments.home_win * 100))
-    rawPrediction.draw_prob += Math.max(-5, Math.min(5, aiResult.probability_adjustments.draw * 100))
-    rawPrediction.away_win_prob += Math.max(-5, Math.min(5, aiResult.probability_adjustments.away_win * 100))
+      const aiResult = await claudeAnalyze({
+        fixture_summary: `${homeTeam.name} vs ${awayTeam.name} - ${league.name} - ${fixture.match_date}`,
+        stats_data: { home: homeStandings, away: awayStandings },
+        h2h_data: h2hData || {},
+        injuries: injuries,
+        context_factors: contextFactors,
+        weather: weather || {},
+        odds: odds || {},
+        manual_inputs: manualInputs,
+        raw_prediction: rawPrediction,
+      })
 
-    // Re-normalize
-    const total = rawPrediction.home_win_prob + rawPrediction.draw_prob + rawPrediction.away_win_prob
-    rawPrediction.home_win_prob = rawPrediction.home_win_prob / total * 100
-    rawPrediction.draw_prob = rawPrediction.draw_prob / total * 100
-    rawPrediction.away_win_prob = rawPrediction.away_win_prob / total * 100
+      // Apply AI adjustments (clamped to ±5%)
+      rawPrediction.home_win_prob += Math.max(-5, Math.min(5, aiResult.probability_adjustments.home_win * 100))
+      rawPrediction.draw_prob += Math.max(-5, Math.min(5, aiResult.probability_adjustments.draw * 100))
+      rawPrediction.away_win_prob += Math.max(-5, Math.min(5, aiResult.probability_adjustments.away_win * 100))
 
-    aiAnalysis = aiResult.narrative
-    keyFactors = aiResult.key_factors
-    riskFactors = aiResult.risk_factors
-  } catch (err) {
-    console.error('AI synthesis failed, using raw prediction:', err)
-    aiAnalysis = 'AI analysis unavailable.'
+      // Re-normalize
+      const total = rawPrediction.home_win_prob + rawPrediction.draw_prob + rawPrediction.away_win_prob
+      rawPrediction.home_win_prob = rawPrediction.home_win_prob / total * 100
+      rawPrediction.draw_prob = rawPrediction.draw_prob / total * 100
+      rawPrediction.away_win_prob = rawPrediction.away_win_prob / total * 100
+
+      aiAnalysis = aiResult.narrative
+      keyFactors = aiResult.key_factors
+      riskFactors = aiResult.risk_factors
+    } catch (err) {
+      console.error('AI synthesis failed, using raw prediction:', err)
+      aiAnalysis = 'AI analysis unavailable — will be enriched later.'
+    }
+  } else {
+    aiAnalysis = 'Statistical prediction — AI enrichment pending.'
+    // Generate key factors from available data
+    if (homeStandings && awayStandings) {
+      if (homeStandings.points > awayStandings.points + 10) keyFactors.push('Strong league position advantage for home team')
+      if (awayStandings.points > homeStandings.points + 10) keyFactors.push('Strong league position advantage for away team')
+    }
+    if (weather) keyFactors.push(`Weather: ${weather.weather_main || 'Clear conditions'}`)
+    if (odds) keyFactors.push(`Market favors ${odds.avg_home_odds < odds.avg_away_odds ? 'home' : 'away'} team`)
   }
 
   // 6. Most likely scores

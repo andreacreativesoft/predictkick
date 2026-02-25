@@ -4,8 +4,8 @@ import { validateCronSecret } from '@/lib/utils/validators'
 
 export const maxDuration = 60
 
-// Process max 3 fixtures per invocation to stay within Vercel timeout
-const MAX_PER_RUN = 3
+// Process max 5 fixtures per run (fast statistical mode without AI = ~2s each)
+const MAX_PER_RUN = 5
 
 export async function GET(request: Request) {
   if (!validateCronSecret(request)) {
@@ -42,6 +42,9 @@ export async function GET(request: Request) {
     const batch = needsPrediction.slice(0, MAX_PER_RUN)
     let generated = 0
     const errors: string[] = []
+
+    // Skip AI in cron to avoid timeouts — AI enrichment can run separately
+    process.env.SKIP_AI_PREDICTION = 'true'
 
     for (const fixture of batch) {
       try {
