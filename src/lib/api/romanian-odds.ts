@@ -103,7 +103,8 @@ export async function fetchSuperbetOdds(
       nextDay.setDate(nextDay.getDate() + 2)
       const end = `${nextDay.toISOString().split('T')[0]}+08:00:00`
 
-      const url = `${SUPERBET_BASE}/events/by-date?currentStatus=active&offerState=prematch&startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}&sportId=5`
+      // Note: Superbet API requires raw "+" in date params, NOT URL-encoded %2B
+      const url = `${SUPERBET_BASE}/events/by-date?currentStatus=active&offerState=prematch&startDate=${start}&endDate=${end}&sportId=5`
 
       const res = await fetch(url, {
         headers: { 'Accept': 'application/json' },
