@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Trophy, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { ArrowLeft, Trophy } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 
@@ -118,7 +118,7 @@ export default async function LeagueDetailPage({ params }: { params: Promise<{ i
                       <td className="py-2 pr-2 text-center text-foreground font-bold">{row.points}</td>
                       <td className="py-2 text-center">
                         <div className="flex gap-0.5 justify-center">
-                          {formStr.split('').slice(-5).map((ch, i) => (
+                          {formStr.split('').slice(-5).map((ch: string, i: number) => (
                             <span
                               key={i}
                               className={`w-4 h-4 rounded-sm flex items-center justify-center text-[9px] font-bold ${
