@@ -314,11 +314,12 @@ function findBestPicks(
     reasoning: string,
   ) => {
     if (prob < 0.05 || prob > 0.98) return // Skip extreme values
+    if (prob > 0.82) return // Skip too-obvious picks (fair odds < 1.22 = no betting value)
 
     let confidence: BestPick['confidence']
-    if (prob >= 0.75) confidence = 'foarte ridicată'
-    else if (prob >= 0.60) confidence = 'ridicată'
-    else if (prob >= 0.45) confidence = 'medie'
+    if (prob >= 0.70) confidence = 'foarte ridicată'
+    else if (prob >= 0.55) confidence = 'ridicată'
+    else if (prob >= 0.40) confidence = 'medie'
     else confidence = 'scăzută'
 
     picks.push({
@@ -376,13 +377,26 @@ function findBestPicks(
   addPick('Cartonașe Peste 3.5', 'Da', markets.cards_over_35, 'cartonașe', `${markets.expected_cards} cartonașe așteptate`)
   addPick('Cartonașe Peste 4.5', 'Da', markets.cards_over_45, 'cartonașe', `${markets.expected_cards} cartonașe așteptate`)
 
-  // Sort by probability (highest edge potential first)
-  // Best picks are those with high probability at reasonable odds (0.50-0.80 range gives good value)
+  // Sort by VALUE SCORE - balances probability with odds attractiveness
+  // A good bet needs both: decent probability AND worthwhile odds
+  // Sweet spot: 40-70% probability (fair odds 1.43-2.50) - this is where real value exists
   picks.sort((a, b) => {
-    // Score: prefer picks in the 55-80% range (strong but not too obvious)
-    const scoreA = a.probability >= 0.55 && a.probability <= 0.85 ? a.probability * 1.2 : a.probability
-    const scoreB = b.probability >= 0.55 && b.probability <= 0.85 ? b.probability * 1.2 : b.probability
-    return scoreB - scoreA
+    const scoreFor = (p: BestPick) => {
+      const prob = p.probability
+      const odds = p.fair_odds
+      // Base: probability gives confidence
+      let score = prob
+      // Big bonus for the "value zone" (40-70% = odds 1.43-2.50)
+      if (prob >= 0.40 && prob <= 0.70) score *= 1.5
+      // Moderate bonus for extended value zone (35-75%)
+      else if (prob >= 0.35 && prob <= 0.75) score *= 1.2
+      // Penalty for very obvious picks (>75% = odds < 1.33)
+      else if (prob > 0.75) score *= 0.6
+      // Extra bonus for picks with odds in the 1.60-3.00 range (actual betting sweet spot)
+      if (odds >= 1.60 && odds <= 3.00) score *= 1.3
+      return score
+    }
+    return scoreFor(b) - scoreFor(a)
   })
 
   return picks
